@@ -2,8 +2,6 @@
 
 A modern, responsive web portal for inquiring about student profiles, achievements, and tournament history for **Okinawa Shorin Kai Karate Do**. This system provides a streamlined interface for parents, students, and administrators to access performance records.
 
-![Shorin Kai Logo](public/logo.png)
-
 ## Features
 
 - **Student Search**: Fast, fuzzy-search enabled directory to find students by name or unique ID (e.g., SK-0001).
