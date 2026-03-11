@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
 import Fuse from 'fuse.js'
+import { supabase } from '@/lib/supabaseClient'
 
 interface Student {
   id: string
@@ -12,6 +12,14 @@ interface Student {
   belt_rank: string
   dojo: string
 }
+
+interface Metric {
+  label: string
+  value: number
+  accent?: boolean
+}
+
+const scoreboardHeadingSize = 'text-[clamp(1.5rem,4.0vw,4.4rem)]'
 
 function BeltBadge({ belt }: { belt: string }) {
   const styles: Record<string, React.CSSProperties> = {
@@ -24,7 +32,7 @@ function BeltBadge({ belt }: { belt: string }) {
 
   return (
     <span
-      className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold tracking-[0.22em] uppercase"
+      className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em]"
       style={styles[belt] ?? {}}
     >
       {belt} belt
@@ -32,11 +40,114 @@ function BeltBadge({ belt }: { belt: string }) {
   )
 }
 
-function StatCard({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'primary' }) {
+function CountUpNumber({ value, active }: { value: number; active: boolean }) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    if (!active) {
+      return
+    }
+
+    let frameId = 0
+    const duration = 1400
+    const startTime = performance.now()
+
+    const tick = (timestamp: number) => {
+      const progress = Math.min((timestamp - startTime) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplayValue(Math.round(value * eased))
+
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(tick)
+      }
+    }
+
+    frameId = window.requestAnimationFrame(tick)
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [active, value])
+
+  return <>{displayValue.toLocaleString()}</>
+}
+
+function ScoreboardSection({ metrics, active }: { metrics: Metric[]; active: boolean }) {
   return (
-    <div className="panel p-6 text-center">
-      <div className={`text-3xl font-bold tracking-tight ${tone === 'primary' ? 'text-primary' : 'text-foreground'}`}>{value}</div>
-      <p className="mt-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+    <div className="panel relative overflow-hidden px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <div className="absolute inset-0 opacity-70">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_28%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.06)_1px,transparent_1px)] bg-[size:30px_30px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-4xl text-center">
+        <div className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
+          Data dashboard
+        </div>
+        <h2 className={`mx-auto mt-4 max-w-full whitespace-nowrap font-bold tracking-tight text-foreground ${scoreboardHeadingSize}`}>
+          Every student. Every dojo. Every belt.
+        </h2>
+        <h2 className={`mx-auto mt-1 max-w-full whitespace-nowrap font-bold tracking-tight text-foreground ${scoreboardHeadingSize}`}>
+          One dashboard!
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+          HonorLog turns the entire organization into one clean readout, so staff can see the full shape of the dojo network, competition footprint, and belt ladder at a glance.
+        </p>
+      </div>
+
+      <div className="relative z-10 mx-auto mt-8 grid max-w-4xl gap-2.5 sm:mt-9">
+        {metrics.map((metric) => (
+          <div
+            key={metric.label}
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/70 bg-background/30 px-4 py-3.5 backdrop-blur-sm sm:grid-cols-[200px_minmax(0,1fr)_auto] sm:px-5 sm:py-4"
+          >
+            <div className="min-w-0 text-left text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-sm">
+              {metric.label}
+            </div>
+            <div className="hidden h-px w-full bg-gradient-to-r from-border/20 via-border/70 to-transparent sm:block" />
+            <div className={`text-right font-mono text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl ${metric.accent ? 'text-primary' : 'text-foreground'}`}>
+              <CountUpNumber value={metric.value} active={active} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EntryDeskPromo() {
+  return (
+    <div className="panel relative overflow-hidden px-5 py-6 sm:px-6 sm:py-7">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_right_top,rgba(239,68,68,0.14),transparent_28%),radial-gradient(circle_at_left_bottom,rgba(16,185,129,0.12),transparent_30%)]" />
+      <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-red-400">
+            Event registration platform
+          </div>
+          <h3 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Need coach and organizer workflows too?
+          </h3>
+          <h3 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Move to EntryDesk.
+          </h3>
+          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+            EntryDesk handles event registration end-to-end: organizers create and manage events, coaches manage students, and participation flows into one clean operations dashboard.
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col lg:items-end">
+          <a
+            href="https://entrydesk.shorinkai.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-primary-foreground transition-colors hover:bg-primary/85"
+          >
+            Open EntryDesk
+            <span className="shrink-0 text-base leading-none" aria-hidden="true">↗</span>
+          </a>
+          <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+            For events, coaches, organizers
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -90,19 +201,74 @@ function SearchResultCard({ student, onOpen }: { student: Student; onOpen: (id: 
 
 export default function Home() {
   const router = useRouter()
+  const statsRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [allStudents, setAllStudents] = useState<Student[]>([])
+  const [eventCount, setEventCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [statsVisible, setStatsVisible] = useState(false)
 
   useEffect(() => {
-    supabase
-      .from('students')
-      .select('id, full_name, student_id, belt_rank, dojo')
-      .order('full_name')
-      .then(({ data, error }) => {
-        if (!error) setAllStudents(data ?? [])
-        setLoading(false)
+    Promise.all([
+      supabase
+        .from('students')
+        .select('id, full_name, student_id, belt_rank, dojo')
+        .order('full_name'),
+      supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true }),
+    ]).then(([studentsResponse, eventsResponse]) => {
+      if (!studentsResponse.error) {
+        setAllStudents(studentsResponse.data ?? [])
+      }
+
+      if (!eventsResponse.error) {
+        setEventCount(eventsResponse.count ?? 0)
+      }
+
+      setLoading(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    const node = statsRef.current
+
+    if (!node) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setStatsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.35 }
+    )
+
+    observer.observe(node)
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const focusSearchFromHash = () => {
+      if (window.location.hash !== '#search' && window.location.hash !== '#search-input') {
+        return
+      }
+
+      window.requestAnimationFrame(() => {
+        searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        searchInputRef.current?.focus()
       })
+    }
+
+    focusSearchFromHash()
+    window.addEventListener('hashchange', focusSearchFromHash)
+
+    return () => window.removeEventListener('hashchange', focusSearchFromHash)
   }, [])
 
   const fuse = useMemo(
@@ -112,16 +278,27 @@ export default function Home() {
 
   const results = useMemo(() => {
     if (!query.trim()) return []
-    return fuse.search(query).slice(0, 8).map(r => r.item)
+    return fuse.search(query).slice(0, 8).map((result) => result.item)
   }, [query, fuse])
 
-  const totalDojos = useMemo(() => new Set(allStudents.map(student => student.dojo)).size, [allStudents])
+  const totalDojos = useMemo(() => new Set(allStudents.map((student) => student.dojo)).size, [allStudents])
   const beltCounts = useMemo(() => {
     return allStudents.reduce<Record<string, number>>((accumulator, student) => {
       accumulator[student.belt_rank] = (accumulator[student.belt_rank] ?? 0) + 1
       return accumulator
     }, {})
   }, [allStudents])
+
+  const metrics = useMemo<Metric[]>(() => [
+    { label: 'Students', value: allStudents.length, accent: true },
+    { label: 'Dojos', value: totalDojos },
+    { label: 'Events', value: eventCount },
+    { label: 'Black belts', value: beltCounts.Black ?? 0 },
+    { label: 'Brown belts', value: beltCounts.Brown ?? 0 },
+    { label: 'Green belts', value: beltCounts.Green ?? 0 },
+    { label: 'Yellow belts', value: beltCounts.Yellow ?? 0 },
+    { label: 'White belts', value: beltCounts.White ?? 0 },
+  ], [allStudents.length, beltCounts, eventCount, totalDojos])
 
   return (
     <div className="min-h-[calc(100dvh-4.5rem)]">
@@ -130,7 +307,7 @@ export default function Home() {
           <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl">
             HonorLog
           </h1>
-          <p className="mt-3 text-sm uppercase tracking-[0.32em] text-muted-foreground sm:text-base">
+          <p className="mt-3 text-sm uppercase tracking-[0.18em] text-muted-foreground sm:text-base">
             Okinawa Shorin Kai
           </p>
           <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
@@ -144,9 +321,11 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
+              id="search-input"
+              ref={searchInputRef}
               type="text"
               value={query}
-              onChange={event => setQuery(event.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by student name or ID"
               className="w-full bg-transparent pl-8 pr-24 text-base text-foreground outline-none placeholder:text-muted-foreground sm:text-lg"
               autoComplete="off"
@@ -165,16 +344,9 @@ export default function Home() {
 
         {!query && (
           <div className="mt-16 space-y-10">
-            <div className="grid gap-4 md:grid-cols-4">
-              <StatCard label="Students" value={allStudents.length} tone="primary" />
-              <StatCard label="Dojos" value={totalDojos} />
-              <StatCard label="Black belts" value={beltCounts.Black ?? 0} />
-              <StatCard label="Brown belts" value={beltCounts.Brown ?? 0} />
-            </div>
-
             <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
               <div className="panel p-8">
-                <div className="inline-flex rounded-full bg-primary/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                <div className="inline-flex rounded-full bg-primary/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
                   Instant student search
                 </div>
                 <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Search profiles, not spreadsheets</h2>
@@ -206,7 +378,7 @@ export default function Home() {
                       <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
                       Loading students…
                     </div>
-                  ) : allStudents.slice(0, 3).map(student => (
+                  ) : allStudents.slice(0, 3).map((student) => (
                     <div key={student.id} className="panel-soft flex items-center justify-between gap-3 p-4">
                       <div className="min-w-0">
                         <div className="truncate font-semibold text-foreground">{student.full_name}</div>
@@ -218,6 +390,12 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            <div ref={statsRef}>
+              <ScoreboardSection metrics={metrics} active={statsVisible && !loading} />
+            </div>
+
+            <EntryDeskPromo />
           </div>
         )}
 
@@ -239,7 +417,7 @@ export default function Home() {
                   {results.length} result{results.length === 1 ? '' : 's'} found
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
-                  {results.map(student => (
+                  {results.map((student) => (
                     <SearchResultCard key={student.id} student={student} onOpen={(id) => router.push(`/student/${id}`)} />
                   ))}
                 </div>

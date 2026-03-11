@@ -4,6 +4,7 @@ import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
 import { ThemeProvider } from "@/lib/ThemeContext";
+import SearchNavLink from "@/components/SearchNavLink";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const geistSans = Geist({
@@ -43,15 +44,23 @@ export default function RootLayout({
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold tracking-tight">HonorLog</div>
-                  <div className="truncate text-xs uppercase tracking-[0.24em] text-muted-foreground">Okinawa Shorin Kai</div>
+                  <div className="truncate text-xs uppercase tracking-[0.14em] text-muted-foreground">Okinawa Shorin Kai</div>
                 </div>
               </Link>
 
               <div className="flex items-center gap-3">
                 <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
                   <Link href="/" className="transition-colors hover:text-foreground">Home</Link>
-                  <Link href="/#search" className="transition-colors hover:text-foreground">Search</Link>
+                  <SearchNavLink className="transition-colors hover:text-foreground" />
                   <Link href="/#contact" className="transition-colors hover:text-foreground">Contact</Link>
+                  <a
+                    href="https://entrydesk.shorinkai.in"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-colors hover:text-foreground"
+                  >
+                    EntryDesk
+                  </a>
                 </nav>
                 <ThemeToggle />
               </div>
@@ -69,7 +78,7 @@ export default function RootLayout({
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">HonorLog</div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Student profile portal</div>
+                    <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Student profile portal</div>
                   </div>
                 </div>
                 <p className="mt-4 max-w-md text-muted-foreground">
@@ -78,27 +87,35 @@ export default function RootLayout({
               </div>
 
               <div>
-                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-foreground">Links</div>
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Links</div>
                 <div className="flex flex-col gap-2">
-                  <Link href="/" className="footer-link">Home</Link>
-                  <Link href="/#search" className="footer-link">Search</Link>
-                  <a href="https://entrydesk.shorinkai.in" target="_blank" rel="noopener noreferrer" className="footer-link">
+                  <Link href="/" className="footer-link inline-flex items-center gap-2">
+                    Home
+                    <span className="shrink-0 text-sm leading-none" aria-hidden="true">↗</span>
+                  </Link>
+                  <Link href="/#search" className="footer-link inline-flex items-center gap-2">
+                    Search
+                    <span className="shrink-0 text-sm leading-none" aria-hidden="true">↗</span>
+                  </Link>
+                  <a href="https://entrydesk.shorinkai.in" target="_blank" rel="noopener noreferrer" className="footer-link inline-flex items-center gap-2">
                     EntryDesk
+                    <span className="shrink-0 text-sm leading-none" aria-hidden="true">↗</span>
                   </a>
                 </div>
               </div>
 
               <div>
-                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-foreground">Contact</div>
+                <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-foreground">Contact</div>
                 <div className="flex flex-col gap-2">
                   <a href="mailto:contact@shorinkai.in" className="footer-link">contact@shorinkai.in</a>
                   <a
                     href="https://github.com/ull0sm/HonorLog"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="footer-link"
+                    className="footer-link inline-flex items-center gap-2"
                   >
                     GitHub repository
+                    <span className="shrink-0 text-sm leading-none" aria-hidden="true">↗</span>
                   </a>
                   <span className="text-muted-foreground">© {new Date().getFullYear()} Okinawa Shorin Kai Karate Do</span>
                 </div>
