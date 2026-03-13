@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { isSuperAdmin, requirePortalSession } from '@/lib/portal/auth'
+import { redirect } from 'next/navigation'
+import { getRegistrarAssignments, isAssignmentLive, isSuperAdmin, requirePortalSession } from '@/lib/portal/auth'
 
 function formatEventDate(value: string) {
     return new Intl.DateTimeFormat('en-IN', {
@@ -28,8 +29,97 @@ function getStatusTone(status: string) {
 export default async function PortalDashboardPage() {
     const { supabase, profile } = await requirePortalSession()
 
+    // ── Registrar path ────────────────────────────────────────────────────
     if (!isSuperAdmin(profile)) {
-        return null
+        const assignments = await getRegistrarAssignments(supabase, profile.id)
+        const liveAssignments = assignments.filter(isAssignmentLive)
+        const expiredAssignments = assignments.filter(
+            (a) => !isAssignmentLive(a) && a.expiresAt && new Date(a.expiresAt) < new Date(),
+        )
+
+        // Single live assignment — route directly into it
+        if (liveAssignments.length === 1) {
+            redirect(`/portal/events/${liveAssignments[0].eventId}/results`)
+        }
+
+        // Multiple live assignments — show picker (unusual v1 case)
+        if (liveAssignments.length > 1) {
+            return (
+                <section className="panel p-6 sm:p-8">
+                    <div className="inline-flex rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground backdrop-blur-sm">
+                        Multiple events
+                    </div>
+                    <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                        Choose your event
+                    </h2>
+                    <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
+                        Your account has active access to {liveAssignments.length} events. Select the one you are working on today.
+                    </p>
+                    <div className="mt-6 grid gap-3">
+                        {liveAssignments.map((a) => (
+                            <Link
+                                key={a.accessId}
+                                href={`/portal/events/${a.eventId}/results`}
+                                className="panel-soft rounded-3xl px-5 py-5 transition-transform hover:-translate-y-0.5"
+                            >
+                                <div className="text-lg font-semibold text-foreground">{a.eventName}</div>
+                                <div className="mt-1 text-sm text-muted-foreground">
+                                    {a.eventDate} · {a.eventLocation}
+                                </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${getStatusTone(a.eventStatus)}`}>
+                                        {a.eventStatus}
+                                    </span>
+                                    {a.resultsLocked ? (
+                                        <span className="rounded-full bg-rose-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 dark:text-rose-300">
+                                            Results locked
+                                        </span>
+                                    ) : null}
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            )
+        }
+
+        // Expired-only — visible, not live
+        if (expiredAssignments.length > 0 && liveAssignments.length === 0) {
+            const expired = expiredAssignments[0]
+            return (
+                <section className="panel p-6 sm:p-8">
+                    <div className="inline-flex rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground backdrop-blur-sm">
+                        Access expired
+                    </div>
+                    <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                        Your event access has expired
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                        Your registrar access for <span className="font-semibold text-foreground">{expired.eventName}</span> expired on{' '}
+                        {expired.expiresAt ? new Date(expired.expiresAt).toLocaleDateString('en-IN') : 'an unknown date'}.
+                        Contact a super admin to renew your access if this event is still active.
+                    </p>
+                </section>
+            )
+        }
+
+        // Disabled or no assignment at all
+        const hasDisabled = assignments.some((a) => !a.isActive)
+        return (
+            <section className="panel p-6 sm:p-8">
+                <div className="inline-flex rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground backdrop-blur-sm">
+                    {hasDisabled ? 'Access disabled' : 'No event assigned'}
+                </div>
+                <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                    {hasDisabled ? 'Your access has been disabled' : 'No event assigned to your account'}
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                    {hasDisabled
+                        ? 'A super admin has disabled your access to this event. Contact your event administrator for assistance.'
+                        : 'Your account is set up but has not been assigned to an event yet. A super admin needs to create your event access before you can enter results.'}
+                </p>
+            </section>
+        )
     }
 
     const { data: events, error } = await supabase

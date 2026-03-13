@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { isSuperAdmin, requirePortalSession } from '@/lib/portal/auth'
 
 function formatEventDate(value: string) {
@@ -29,7 +30,7 @@ export default async function PortalEventsPage() {
     const { supabase, profile } = await requirePortalSession()
 
     if (!isSuperAdmin(profile)) {
-        return null
+        redirect('/portal')
     }
 
     const { data: events, error } = await supabase

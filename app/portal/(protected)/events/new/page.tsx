@@ -110,7 +110,7 @@ export default async function PortalNewEventPage({ searchParams }: PortalNewEven
     const { profile } = await requirePortalSession()
 
     if (!isSuperAdmin(profile)) {
-        return null
+        redirect('/portal')
     }
 
     const params = await searchParams

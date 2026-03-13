@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 ## 2026-03-11
 
@@ -667,3 +667,144 @@ Five server actions were implemented:
 
 - Implement registrar-specific portal flow and one-event routing behavior (Phase 6).
 - Build JSON import pipeline with validation and preview (Phase 7).
+---
+
+## Change Set 9: Phase 6 - Registrar Portal Experience
+
+**Date:** 2026-03-13
+**Prompt:** Prompt 7 - Registrar portal experience
+**Branch:** main
+
+### Modified Files
+
+- `lib/portal/auth.ts` � Added RegistrarAssignment type, getRegistrarAssignments, getRegistrarEventAccess, isAssignmentLive.
+- `app/portal/(protected)/layout.tsx` � Registrar-aware minimal nav branch.
+- `app/portal/(protected)/page.tsx` � Registrar auto-routing logic.
+- `app/portal/(protected)/events/[eventId]/results/page.tsx` � Replaced scaffold with scoped access enforcement and registrar shell.
+- `app/portal/(protected)/events/[eventId]/page.tsx` � Registrar redirected to results instead of returning null.
+- `app/portal/(protected)/events/[eventId]/access/page.tsx` � Registrar redirected to results instead of returning null.
+- `app/portal/(protected)/events/[eventId]/import/page.tsx` � Replaced scaffold; registrar redirected; admin sees proper placeholder with tab nav.
+- `app/portal/(protected)/events/page.tsx` � Registrar redirected to /portal.
+- `app/portal/(protected)/events/new/page.tsx` � Registrar redirected to /portal.
+
+### What Was Built
+
+#### lib/portal/auth.ts additions
+
+getRegistrarAssignments(supabase, userId): queries all event_access rows for the user with role=event_registrar, joins event metadata via a second query, returns all rows regardless of active/expired state.
+
+getRegistrarEventAccess(supabase, userId, eventId): filters to a single event. Returns null if no match. Used by all page-level access guards.
+
+isAssignmentLive(assignment): returns true only if is_active=true AND expires_at is null or in the future.
+
+#### layout.tsx
+
+isRegistrar flag: !superAdmin && profile.global_role === 'staff'. Registrar nav contains exactly: My event + Logout. No admin tabs visible. Children rendered for superAdmin || isRegistrar.
+
+#### page.tsx (dashboard) � registrar routing
+
+1. Exactly one live assignment: redirect to results tab (zero friction).
+2. Multiple live assignments: event picker with name/date/location/status/lock badges.
+3. Expired-only assignments: "Access expired" state with event name and date.
+4. Disabled or no assignment: "Access disabled" or "No event assigned" state.
+
+#### results/page.tsx
+
+Registrar access gate: getRegistrarEventAccess for specific eventId. No assignment returns "You do not have access to this event" (not 404 � avoids leaking event existence). Inactive/expired returns role-appropriate state. Tab nav is role-conditional: admin sees all four tabs; registrar sees Results only. Locked event banner when results_locked=true or status=locked.
+
+#### Admin page guards
+
+All null-returns replaced with redirects. Import page upgraded from bare scaffold to admin-only placeholder with proper tab nav and auth guard.
+
+### Edge Cases Covered
+
+- No active assignment: "No event assigned" on dashboard.
+- Expired assignment: "Access expired" with date.
+- Disabled assignment: "Access disabled".
+- URL manipulation to another event: "You do not have access to this event".
+- Registrar visits admin tabs via URL: redirected to results or /portal.
+- Locked event: locked banner on results page.
+- Multiple live assignments: event picker on dashboard.
+
+### Security Notes
+
+- Event-scoped access enforced at server component level (data query gate), not UI-only.
+- getRegistrarEventAccess verifies user_id+eventId+role before event data reaches the registrar.
+- Admin nav fully absent from registrar layout (not CSS-hidden).
+- All admin page guards redirect rather than return null (closes partial-render info leaks).
+
+### Validation
+
+- npm run lint passed (zero errors, zero warnings)
+- npm run build passed
+
+### Remaining For Next Phases
+
+- Phase 7: JSON import pipeline (upload, validation, preview, confirm import).
+- Phase 8: Excel template support through the same import pipeline.
+
+---
+
+## Change Set 10: Phase 7 - JSON Upload, Validation, and Preview
+
+**Date:** 2026-03-13
+**Prompt:** Prompt 8 - JSON upload, validation, and preview
+**Branch:** main
+
+### Modified Files
+
+- `app/portal/(protected)/events/[eventId]/import/page.tsx`
+
+### What Was Built
+
+- Replaced the Phase 7 placeholder with a full admin-only JSON import workflow under the event import tab.
+- Added server action `uploadJsonAction`:
+  - accepts `.json` file upload
+  - parses JSON on the server
+  - validates participant rows against required fields and event categories
+  - detects duplicates both within the file and against existing event registrations
+  - stores import batch data in `event_import_batches`
+  - stores per-row preview state in `event_import_rows` with `valid`, `warning`, `error`, `duplicate`
+- Added server action `confirmImportAction`:
+  - requires explicit confirmation checkbox
+  - blocks repeated confirm calls when batch is already confirmed
+  - blocks stale preview when batch is missing, mismatched, or not validated
+  - blocks confirmation when duplicate/error rows exist
+  - inserts normalized rows into `event_registrations`
+  - updates batch status to `confirmed`
+  - updates event import status to `imported`
+- Added persisted preview UX in four explicit steps:
+  - Step 1: file upload
+  - Step 2: validation summary metrics
+  - Step 3: row-level preview table
+  - Step 4: explicit confirm import action
+- Added clear error and success feedback states for:
+  - invalid JSON
+  - empty/missing/unsupported file
+  - stale preview
+  - repeated confirm
+  - blocking validation rows
+  - confirmation failures
+
+### Edge Cases Covered
+
+- invalid JSON payload
+- empty participants list
+- missing participant name/category
+- unknown category names
+- non-numeric age values
+- duplicate participants inside upload
+- duplicate participants already present in event registrations
+- repeated confirm requests
+- stale preview state after refresh or mismatched batch
+
+### Validation
+
+- `npm run lint` passed
+- `npm run build` passed
+
+### Remaining For Next Phases
+
+- Phase 8: Excel support using the same validation and preview pipeline.
+- Phase 9: Prize entry workflow using imported registrations.
+

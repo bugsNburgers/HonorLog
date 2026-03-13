@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { notFound, redirect } from 'next/navigation'
-import { isSuperAdmin, requirePortalSession } from '@/lib/portal/auth'
+import {
+    getRegistrarEventAccess,
+    isSuperAdmin,
+    requirePortalSession,
+} from '@/lib/portal/auth'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 
 // ---------------------------------------------------------------------------
@@ -318,7 +322,10 @@ export default async function PortalEventAccessPage({ params, searchParams }: Po
     const { eventId } = await params
     const { supabase, profile } = await requirePortalSession()
 
-    if (!isSuperAdmin(profile)) return null
+    if (!isSuperAdmin(profile)) {
+        const assignment = await getRegistrarEventAccess(supabase, profile.id, eventId)
+        redirect(assignment ? `/portal/events/${eventId}/results` : '/portal')
+    }
 
     const { data: event } = await supabase
         .from('events')

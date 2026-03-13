@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { notFound, redirect } from 'next/navigation'
-import { isSuperAdmin, requirePortalSession } from '@/lib/portal/auth'
+import {
+    getRegistrarEventAccess,
+    isSuperAdmin,
+    requirePortalSession,
+} from '@/lib/portal/auth'
 
 const EVENT_STATUSES = ['draft', 'active', 'completed', 'locked', 'archived'] as const
 
@@ -196,7 +200,11 @@ export default async function PortalEventDetailPage({ params, searchParams }: Po
     const { supabase, profile } = await requirePortalSession()
 
     if (!isSuperAdmin(profile)) {
-        return null
+        // Registrars have only the results tab — send them there directly.
+        // We still verify they have any assignment for this event first so a
+        // random URL manipulation doesn't leak the event's existence.
+        const assignment = await getRegistrarEventAccess(supabase, profile.id, eventId)
+        redirect(assignment ? `/portal/events/${eventId}/results` : '/portal')
     }
 
     const { data: event } = await supabase
