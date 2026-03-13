@@ -5,5 +5,5 @@ export async function GET(request: Request) {
     const supabase = await createServerSupabaseClient()
     await supabase.auth.signOut()
 
-    return NextResponse.redirect(new URL('/portal/login', request.url))
+    return NextResponse.redirect(new URL('/portal/login?reason=signed_out', request.url))
 }

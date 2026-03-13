@@ -1,4 +1,64 @@
-export default function PortalLoginPage() {
+import { redirect } from 'next/navigation'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import PortalLoginForm from './PortalLoginForm'
+
+type PortalLoginPageProps = {
+    searchParams?: Promise<{
+        reason?: string
+        error?: string
+    }>
+}
+
+function getReasonMessage(reason?: string, error?: string) {
+    if (error === 'invalid_credentials') {
+        return 'Email or password is incorrect. Please try again.'
+    }
+
+    if (reason === 'expired') {
+        return 'Your session expired. Please sign in again.'
+    }
+
+    if (reason === 'no_profile') {
+        return 'Your account does not have a portal profile yet. Contact an administrator.'
+    }
+
+    if (reason === 'inactive') {
+        return 'Your account is inactive. Contact an administrator.'
+    }
+
+    if (reason === 'signed_out') {
+        return 'You have been signed out successfully.'
+    }
+
+    return null
+}
+
+export default async function PortalLoginPage({ searchParams }: PortalLoginPageProps) {
+    const resolvedParams = await searchParams
+    const reason = resolvedParams?.reason
+    const error = resolvedParams?.error
+
+    const supabase = await createServerSupabaseClient()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
+
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, is_active')
+            .eq('id', user.id)
+            .maybeSingle()
+
+        if (profile?.is_active) {
+            redirect('/portal')
+        }
+
+        await supabase.auth.signOut()
+    }
+
+    const reasonMessage = getReasonMessage(reason, error)
+
     return (
         <section className="mx-auto flex min-h-[calc(100dvh-9rem)] w-full max-w-7xl items-center px-4 py-14 sm:px-6 sm:py-20">
             <div className="grid w-full gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
@@ -36,45 +96,18 @@ export default function PortalLoginPage() {
                         Portal login
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        The login UI is now in place. Authentication wiring, role checks, and session protection will be added in the first portal implementation phase.
+                        One login flow is shared for super admins and event registrars. Access scope is enforced after sign in.
                     </p>
 
-                    <form className="mt-6 space-y-4" aria-label="Portal login form">
-                        <label className="block">
-                            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-foreground">
-                                Email
-                            </span>
-                            <input
-                                type="email"
-                                inputMode="email"
-                                disabled
-                                placeholder="portal access will be enabled next"
-                                className="w-full rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/55"
-                            />
-                        </label>
+                    {reasonMessage ? (
+                        <div className="mt-4 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground">
+                            {reasonMessage}
+                        </div>
+                    ) : null}
 
-                        <label className="block">
-                            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-foreground">
-                                Password
-                            </span>
-                            <input
-                                type="password"
-                                disabled
-                                placeholder="authentication not enabled yet"
-                                className="w-full rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/55"
-                            />
-                        </label>
-
-                        <button
-                            type="button"
-                            disabled
-                            className="inline-flex w-full items-center justify-center rounded-full bg-primary/35 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-primary-foreground/85 opacity-80"
-                        >
-                            Authentication setup pending
-                        </button>
-                    </form>
+                    <PortalLoginForm />
                 </div>
             </div>
         </section>
-    );
+    )
 }

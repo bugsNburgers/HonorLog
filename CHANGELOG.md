@@ -337,3 +337,79 @@ This update delivers **Phase 0: foundation and route scaffolding** for the inter
 - Update `schema.sql` with the full merged schema once all Phase 1 objects are stable (optional, separate housekeeping step).
 - Implement Row Level Security policies for all portal tables (Phase 3).
 - Implement login UI, session lifecycle, and profile bootstrap (Phase 2).
+
+---
+
+## Change Set 5: Phase 2 – Shared Login and Session Protection
+
+### Commit
+
+- Working tree update (not yet committed)
+
+### Why
+
+- The portal needed a real shared authentication flow for both super admins and registrars.
+- Internal routes needed server-side protection so sensitive pages cannot be accessed without a valid session.
+- Profile bootstrap checks were required to reject users who authenticate but are not portal-ready.
+
+### What Changed
+
+- Replaced placeholder portal login behavior with real Supabase email/password sign-in.
+- Added server-side login page session checks to avoid showing login to already-authenticated active users.
+- Added clear state messaging on login for:
+  - invalid credentials
+  - expired session
+  - no profile row
+  - inactive user
+  - successful logout
+- Hardened protected portal layout checks:
+  - redirect unauthenticated users to `/portal/login?reason=expired`
+  - lookup authenticated user in `profiles`
+  - sign out and redirect when profile is missing or inactive
+- Added visible identity context in protected portal header (name/email + role).
+- Updated logout route to redirect with explicit signed-out state (`reason=signed_out`).
+- Added frontend expectations to Prompt 3 in the implementation plan for clarity and testing alignment.
+
+### Where
+
+- `app/portal/login/page.tsx`
+- `app/portal/login/PortalLoginForm.tsx` (new file)
+- `app/portal/(protected)/layout.tsx`
+- `app/portal/logout/route.ts`
+- `BACKEND_PORTAL_IMPLEMENTATION_PLAN.md`
+
+### When
+
+- Date logged: 2026-03-13
+
+### How
+
+#### Shared login flow
+
+- Implemented login form submission in a client component using `supabase.auth.signInWithPassword(...)`.
+- On auth failure, redirects back to login with `error=invalid_credentials`.
+- On success, routes into `/portal` and refreshes server state.
+
+#### Session-aware protection
+
+- Protected layout now validates session on every request via `supabase.auth.getUser()`.
+- Missing/expired sessions are redirected before protected UI renders.
+
+#### Profile bootstrap checks
+
+- After session validation, protected layout queries `profiles` by authenticated user id.
+- Missing profile and inactive profile are both treated as denied access: session is terminated and user is returned to login with reason context.
+
+### Result
+
+- Portal now has a working shared login flow and server-enforced protected route behavior.
+- Required Prompt 3 edge cases are handled with user-visible messages.
+- Public pages outside `/portal` remain unchanged and accessible.
+- Validation completed successfully:
+  - `npm run build` passed
+  - `npm run lint` passed
+
+### Remaining For Next Phases
+
+- Add role-based authorization gates for super admin dashboard access (Phase 3).
+- Introduce RLS policies to align database enforcement with portal UI/session restrictions (Phase 3+).

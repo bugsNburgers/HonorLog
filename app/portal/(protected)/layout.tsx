@@ -13,7 +13,23 @@ export default async function PortalProtectedLayout({
     } = await supabase.auth.getUser()
 
     if (!user) {
-        redirect('/portal/login')
+        redirect('/portal/login?reason=expired')
+    }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, global_role, is_active')
+        .eq('id', user.id)
+        .maybeSingle()
+
+    if (!profile) {
+        await supabase.auth.signOut()
+        redirect('/portal/login?reason=no_profile')
+    }
+
+    if (!profile.is_active) {
+        await supabase.auth.signOut()
+        redirect('/portal/login?reason=inactive')
     }
 
     return (
@@ -25,6 +41,9 @@ export default async function PortalProtectedLayout({
                             HonorLog internal portal
                         </div>
                         <h1 className="mt-1 text-xl font-bold tracking-tight text-foreground">Operations workspace</h1>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Signed in as {profile.full_name || user.email || 'portal user'} ({profile.global_role})
+                        </p>
                     </div>
 
                     <nav className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">

@@ -863,6 +863,14 @@ Deliverables:
 - clear user/session state handling
 ```
 
+Frontend expectations for Prompt 3:
+
+- login page must provide usable email/password inputs with loading and error feedback
+- protected portal header should show authenticated identity context (name/email + role)
+- session expiry should redirect with a clear message instead of a blank failure state
+- inactive/no-profile users should be signed out and shown a human-readable reason
+- public pages (outside /portal) should remain unchanged and accessible
+
 ### Prompt 4: Super admin dashboard shell
 
 ```text
